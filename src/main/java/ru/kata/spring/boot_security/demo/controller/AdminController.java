@@ -5,6 +5,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.validation.BindingResult;
+import org.springframework.web.bind.WebDataBinder;
 import org.springframework.web.bind.annotation.*;
 import ru.kata.spring.boot_security.demo.model.Role;
 import ru.kata.spring.boot_security.demo.model.User;
@@ -14,6 +15,8 @@ import ru.kata.spring.boot_security.demo.service.UserService;
 import javax.validation.Valid;
 import java.security.Principal;
 import java.util.List;
+import java.util.Objects;
+import java.util.stream.Collectors;
 
 @Controller
 @RequestMapping("/admin")
@@ -21,11 +24,18 @@ public class AdminController {
     private final UserService userService;
     private final RoleService roleService;
 
+    private final String redirectURL = "redirect:/admin";
+
 
     @Autowired
     public AdminController(UserService userService, RoleService roleService) {
         this.userService = userService;
         this.roleService = roleService;
+    }
+
+    @InitBinder
+    public void initBinder(WebDataBinder binder) {
+        binder.setDisallowedFields("roles");
     }
 
     @GetMapping(value = "")
@@ -51,11 +61,19 @@ public class AdminController {
 
     @PostMapping()
     public String create(@ModelAttribute("user") @Valid User user,
-                         BindingResult bindingResult) {
+                         BindingResult bindingResult, @RequestParam List<String> roles) {
+        List<Role> userRoles = roles.stream()
+                .map(Long::parseLong)
+                .map(roleService::getRoleById)
+                .filter(Objects::nonNull)
+                .collect(Collectors.toList());
+
+        user.setRoles(userRoles);
+
         if (bindingResult.hasErrors())
             return "admin";
         userService.addUser(user);
-        return "redirect:/admin";
+        return redirectURL;
     }
 
     @GetMapping(value = "/edit")
@@ -70,12 +88,12 @@ public class AdminController {
         if (bindingResult.hasErrors())
             return "edit";
         userService.editUser(user);
-        return "redirect:/admin";
+        return redirectURL;
     }
 
     @DeleteMapping(value = "/{id}")
     public String delete(@PathVariable("id") long id, Model model) {
         userService.removeUser(id);
-        return "redirect:/admin";
+        return redirectURL;
     }
 }
