@@ -84,9 +84,16 @@ public class AdminController {
 
     @PatchMapping("/{id}")
     public String update(@ModelAttribute("user") @Valid User user,
-                         BindingResult bindingResult) {
+                         BindingResult bindingResult, @RequestParam(name = "roles") List<String> roles) {
         if (bindingResult.hasErrors())
             return "edit";
+        List<Role> userRoles = roles.stream()
+                .map(Long::parseLong)
+                .map(roleService::getRoleById)
+                .filter(Objects::nonNull)
+                .collect(Collectors.toList());
+
+        user.setRoles(userRoles);
         userService.editUser(user);
         return redirectURL;
     }
